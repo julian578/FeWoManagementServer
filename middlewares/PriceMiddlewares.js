@@ -4,6 +4,7 @@ import PriceModel from "../models/Price.js";
 async function getPriceForTwo(req, res, next) {
     try {
 
+        console.log("angekommen price for two")
         const flatNumber = req.body.flatNumber;
         console.log("number:" +  flatNumber)
         const subject = String.fromCharCode(64 + flatNumber)+"_PRICE_PER_NIGHT_TWO";
@@ -24,10 +25,19 @@ async function getPriceAdditionalPerson(req, res, next) {
     try {
 
         const flatNumber = req.body.flatNumber;
-        const subject = String.fromCharCode(64 + flatNumber)+"_PRICE_PER_FURTHER_PERSON";
-        const priceModel = await PriceModel.findOne({subject: subject});
-        req.priceAdditionalNight = priceModel.price.toFixed(2);
-        return next();
+        //flat K can only accept two guests
+        if(flatNumber === 11) {
+            req.priceAdditionalNight = 0;
+            console.log("raus")
+            return next();
+        } else {
+            const subject = String.fromCharCode(64 + flatNumber)+"_PRICE_PER_FURTHER_PERSON";
+            console.log(subject)
+            const priceModel = await PriceModel.findOne({subject: subject});
+            req.priceAdditionalNight = priceModel.price.toFixed(2);
+            return next();
+        }
+        
 
     } catch(err) {
         console.log(err);
@@ -39,6 +49,7 @@ async function getPriceAdditionalPerson(req, res, next) {
 async function getCleaningPrice(req, res, next) {
     try {
 
+        console.log("cleaning")
         
         if(req.body.numberOfAnimals == 0) {
             

@@ -5,17 +5,11 @@ import mongoose from 'mongoose';
 const clientSchema = new mongoose.Schema({
     gender: String,
     fullName: String,
-    mobilePhone: {
-        type: String,
-        required: false,
-    },
-    phone: {
-        type: String,
-        required: false
-    },
+    mobilePhone: String,
+    phone: String,
     email: String,
     street: String,
-    houseNumber: Number,
+    houseNumber: String,
     postalCode: String,
     city: String,
     country: String,

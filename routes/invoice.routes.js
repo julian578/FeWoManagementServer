@@ -2,6 +2,8 @@ import express from 'express';
 import { verifyToken } from '../security/jwtUtils.js';
 import InvoiceModel from '../models/Invoice.js';
 import { createInvoice, generateInvoiceData, loadBooking, loadClient } from '../middlewares/InvoiceCreation.js';
+import { BookingModel } from '../models/Booking.js';
+import ClientModel from '../models/Client.js';
 
 
 const invoiceRouter = express.Router();
@@ -36,6 +38,19 @@ invoiceRouter.get("/", verifyToken, async(req, res) => {
     }
 })
 
+//get invoice by invoiceId
+invoiceRouter.get("/invoiceId/:invoiceId", verifyToken, async(req, res) => {
+
+    try {
+
+        const invoice = await InvoiceModel.findOne({invoiceId: req.params.invoiceId});
+        res.json(invoice);
+    } catch(err) {
+        res.sendStatus(500);
+    }
+});
+
+
 
 //get invoice by bookingId
 invoiceRouter.get("/:booking", verifyToken, async(req, res) => {
@@ -45,12 +60,35 @@ invoiceRouter.get("/:booking", verifyToken, async(req, res) => {
         res.json(invoice);
     } catch(err) {
         console.log(err);
-        res.sendStatust(500);
+        res.sendStatus(500);
     }
 })
 
-export default invoiceRouter;
 
+
+invoiceRouter.get("/booking/:clientId", verifyToken, async(req, res) => {
+
+    try {
+
+        const booking = await BookingModel.findOne({clientId: req.params.clientId});
+        res.json(booking);
+    } catch(err) {
+        console.log(err);
+        res.sendStatus(500);
+    }
+});
+
+
+invoiceRouter.delete("/all", verifyToken, async(req, res) => {
+
+    try {
+        await InvoiceModel.deleteMany();
+        res.sendStatus(200);
+    } catch(err) {
+        console.log(err);
+        res.sendStatus(500);
+    }
+});
 
 async function generateInvoiceId(req, res, next) {
     const invoices = (await InvoiceModel.find()).reverse();
@@ -58,9 +96,11 @@ async function generateInvoiceId(req, res, next) {
         req.invoiceId = invoices[0].invoiceId + 1
     } else {
 
-        req.invoiceId = 1;
+        req.invoiceId = 50000001;
     
     }
 
     return next();
 }
+
+export default invoiceRouter;

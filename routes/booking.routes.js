@@ -6,6 +6,7 @@ import ClientModel from '../models/Client.js';
 import PriceModel from '../models/Price.js';
 import {getPriceForTwo, getPriceAdditionalPerson, getCleaningPrice, getPriceAnimal } from '../middlewares/PriceMiddlewares.js';
 import { loadBooking, loadClient } from '../middlewares/InvoiceCreation.js';
+import InvoiceModel from '../models/Invoice.js';
 
 
 const bookingRouter = express.Router();
@@ -13,6 +14,7 @@ const bookingRouter = express.Router();
 //create new booking
 bookingRouter.post("/create", verifyToken, getPriceForTwo, getPriceAdditionalPerson, getCleaningPrice, getPriceAnimal, async (req, res) => {
 
+    console.log("test")
     const priceTwo = req.priceTwoNight;
     
     const priceAddtional = req.priceAdditionalNight;
@@ -53,8 +55,8 @@ bookingRouter.post("/create", verifyToken, getPriceForTwo, getPriceAdditionalPer
         }
         if(req.body.listOfNames !== undefined) {
             bookingInformation.listOfNames = req.body.listOfNames;
-
-        }
+        } else bookingInformation.listOfNames = "-";
+        console.log(bookingInformation);
         
         const booking = new BookingModel(bookingInformation);
         await booking.save();
@@ -80,6 +82,36 @@ bookingRouter.post("/client", verifyToken, async(req, res) => {
     } catch(err) {
         console.log(err);
         res.sendStatus(500);
+    }
+})
+
+//update booking
+bookingRouter.put("/:id", verifyToken, async(req, res) => {
+    try {
+        let booking = await BookingModel.findOne({_id: req.params.id});
+        await booking.updateOne(req.body);
+        res.json(booking)
+    } catch(err) {
+
+        console.log(err);
+        res.sendStatus(500);
+    }
+})
+
+//update clientData
+bookingRouter.post("/client/:id", verifyToken, async(req, res) => {
+    try {
+        console.log("update");
+        let client = await ClientModel.findOne({_id: req.params.id});
+        console.log(client);
+        await client.updateOne(req.body);
+        res.json(client);
+    } catch(err) {
+
+        console.log(err);
+        res.sendStatus(500);
+
+
     }
 })
 
@@ -119,15 +151,30 @@ bookingRouter.post("/available", verifyToken, async(req, res) => {
         const leavingDate = createDateFromFormat(req.body.leavingDate);
         const bookings = await BookingModel.find({flatNumber: flatNumber});
         
-        bookings.forEach(function(booking) {
-            const bookingArrivalDate = createDateFromFormat(booking.arrivalDate);
-            const bookingLeavingDate = createDateFromFormat(booking.leavingDate);
-            if(arrivalDate>=bookingArrivalDate && arrivalDate < bookingLeavingDate || leavingDate > bookingArrivalDate && leavingDate <= bookingLeavingDate) {
-                return res.json({available: false})
-            }
-        })
+        console.log(bookings)
+        
+        if(bookings && bookings.length > 0) {
+            
+            var available = true;
+            bookings.every(function(booking) {
+                const bookingArrivalDate = createDateFromFormat(booking.arrivalDate);
+                const bookingLeavingDate = createDateFromFormat(booking.leavingDate);
+                if(arrivalDate>=bookingArrivalDate && arrivalDate < bookingLeavingDate || leavingDate > bookingArrivalDate && leavingDate <= bookingLeavingDate || arrivalDate <= bookingArrivalDate && leavingDate >= bookingLeavingDate) {
+                    console.log("nicht verfügbar")
+                    available = false;
+                    
+                } else {
+                    console.log("verfügbar");
+                    return true;
+                }
+            })
 
-        res.json({available: true});
+            console.log(available);
+            return res.json({available: available});
+        } else {
+            return res.json({available: true});
+        }
+        
 
     } catch(err) {
         console.log(err);
@@ -153,6 +200,9 @@ bookingRouter.get("/all", verifyToken, async(req, res) => {
 //delete booking by Id
 bookingRouter.delete("/delete/:id", verifyToken, async(req, res) => {
     try {
+        const booking = await BookingModel.findOne({_id: req.params.id});
+
+        await ClientModel.deleteOne({_id: booking.clientId});
         await BookingModel.deleteOne({_id: req.params.id});
         res.sendStatus(200)
     } catch(err) {
@@ -161,6 +211,96 @@ bookingRouter.delete("/delete/:id", verifyToken, async(req, res) => {
     }
 })
 
+//delete all bookings
+bookingRouter.delete("/", verifyToken, async(req, res) => {
+
+    try {
+
+        await BookingModel.deleteMany();
+        await ClientModel.deleteMany();
+        res.sendStatus(200);
+    } catch(err) {
+        console.log(err);
+        res.sendStatus(500);
+    }
+});
+
+//get bookings by name of the client
+bookingRouter.post("/name", verifyToken, async(req, res) => {
+
+    try {
+        const clients = await ClientModel.find({fullName: req.body.name});
+        
+        if(clients.length === 0) {
+            res.json([]);
+        } else {
+            let bookings = [];
+            let counter = 0;
+            
+            clients.forEach(async(client) => {
+                
+                
+               const booking = await BookingModel.findOne({clientId: client._id.toString()});
+                
+                if(booking)bookings.push(booking);
+                
+                if(counter === clients.length-1) {
+                    
+                    res.json(bookings);
+                }
+                counter++;
+            })
+    
+        }
+        
+    
+    } catch(err) {
+        console.log(err);
+        res.sendStatus(500);
+    }
+});
+
+//get booking by invoiceId
+bookingRouter.get("/invoice/:invoiceId", verifyToken, async(req, res) => {
+
+    try {
+
+        const invoice = await InvoiceModel.findOne({invoiceId: req.params.invoiceId});
+
+        if(invoice) {
+
+            const booking = await BookingModel.findOne({_id: invoice.booking.toString()});
+
+            if(booking) {
+                res.json([booking]);
+            } else {
+                res.json([]);
+            }
+            
+        } else {
+            //invoice not found
+            res.json([]);
+        }
+
+
+    } catch(err) {
+        console.log(err);
+        res.sendStatus(500);
+    }
+});
+
+
+bookingRouter.delete("/client", verifyToken, async(req, res) => {
+
+    try {
+        await ClientModel.deleteMany();
+        res.sendStatus(200);
+
+    } catch(err) {
+        console.log(err);
+        res.sendStatus(500);
+    }
+});
 
 
 function calculateNumberOfNights(arrivalDateString, leavingDateString) {
@@ -213,7 +353,7 @@ function calculateTotalPrice(priceNightTwo, priceNightAdditional, priceNightAnim
 //get all bookings without created invoice
 bookingRouter.get("/no-invoice", verifyToken, async (req, res) => {
     try {
-        const bookngs = await BookingModel.find({invoiceStatus: 0});
+        const bookings = await BookingModel.find({invoiceStatus: 0});
 
         res.json(bookings);
     } catch(err) {

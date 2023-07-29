@@ -4,16 +4,23 @@ import jwt from 'jsonwebtoken';
 //generate jwt token when user tries to log in
 async function createToken(user) {
 
-    return new Promise((resolve, reject) => {
-        console.log(user)
-        jwt.sign({user: user}, "secretkey", (err, token) => {
-            if(err) {
-                console.log(err)
-                reject("wrong username or password");
-            }
-            else resolve(token)
+    try {
+        return new Promise((resolve, reject) => {
+            console.log(user)
+            jwt.sign({user: user}, "secretkey", (err, token) => {
+                if(err) {
+                    console.log(err)
+                    reject("wrong username or password");
+                }
+                else resolve(token)
+            })
         })
-    })
+    } catch(err) {
+        console.log(err);
+        res.sendStatus(500);
+    }
+
+    
 
 }
 
@@ -21,13 +28,17 @@ async function createToken(user) {
 //verify jwt for every request
 async function verifyToken(req, res, next) {
 
-    const token = extractToken(req, res);
+    
+    
     try {
+        const token = extractToken(req, res);
         jwt.verify(token, "secretkey", (err, authData) => {
             if(err) {
                 console.log(err);
                 res.sendStatus(403);
             } else {
+
+                console.log(token)
                 req.token = token;
                 
                 return next();  
